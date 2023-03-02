@@ -8,7 +8,6 @@ Created on Tue Oct  5 13:37:01 2021
 
 import torch
 import torch.nn as nn
-from torchsummary import summary
 
 
 def autocrop(encoder_layer: torch.Tensor, decoder_layer: torch.Tensor):
@@ -424,7 +423,6 @@ if __name__ == "__main__":
                  dim=dim,
                  overlap=overlap)
  
-    #summary = summary(model, (in_c, 512, 512))
     
     if dim == 2:
         x = torch.randn(size=(batch_size, in_c, 256, 256), dtype=torch.float32)
