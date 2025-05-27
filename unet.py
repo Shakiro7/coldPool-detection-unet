@@ -422,8 +422,7 @@ if __name__ == "__main__":
                  conv_mode='same',
                  dim=dim,
                  overlap=overlap)
- 
-    
+     
     if dim == 2:
         x = torch.randn(size=(batch_size, in_c, 256, 256), dtype=torch.float32)
     if dim == 3:

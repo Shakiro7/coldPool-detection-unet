@@ -136,7 +136,7 @@ class Trainer:
                                               'false_negative',
                                               'true_positive'
                                               ])
-            metrics_df.to_pickle(self.analysis.root / ("Output/Dataframes/metricsDf_"+self.analysis.dataset_name+"_"+str(self.model.n_blocks)+"blocks_"+
+            metrics_df.to_pickle(self.analysis.root / ("Output/TrainingDataframes/metricsDf_"+self.analysis.dataset_name+"_"+str(self.model.n_blocks)+"blocks_"+
                                                        str(self.model.start_filters)+"filter_"+str(self.training_DataLoader.batch_size)+
                                                        "batch_"+str(self.optimizer.param_groups[0]['lr'])+"lrScheduled"+str(self.learningRateScheduler)+"_"+str(self.epoch)+"epochs_"+self.model.activation+self.model.normalization+self.loss+".pkl"))
         return 
@@ -224,6 +224,17 @@ class Trainer:
             self.validation_fp.append(None)
             self.validation_fn.append(None)
             self.validation_tp.append(None)
+
+        # if (self.epoch == self.epochs) or ((self.epoch > 1) and (self.validation_accuracy[-1]/100 >= self.target_accuracy)):
+        #     splot = plot_confusionMatrix(y_pred=y_pred,
+        #                                  y_true=y_true,
+        #                                  classes=classes,
+        #                                  normalize='true')
+        #     if self.analysis.save_confusion:
+        #         plt.savefig(self.analysis.root / ("Output/confusionMatrix_"+self.analysis.dataset_name+"_"+str(self.model.n_blocks)+
+        #                                           "blocks_"+str(self.model.start_filters)+"filter_"+
+        #                                           str(self.training_DataLoader.batch_size)+"batch_"+str(self.optimizer.param_groups[0]['lr'])+
+        #                                           "lrScheduled"+str(self.learningRateScheduler)+"_"+str(self.epochs)+"epochs_"+self.model.activation+self.model.normalization+self.loss+".png"))
 
 
         batch_iter.close()

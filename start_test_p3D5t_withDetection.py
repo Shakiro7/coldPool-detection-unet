@@ -8,13 +8,9 @@ Created on Thu Nov  4 14:41:53 2021
 
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib.ticker import MaxNLocator
-import pandas as pd
-import seaborn as sns
 import torch
 import pathlib
+import pandas as pd
 from preprocessing import normalize_01
 from unet import UNet
 from postprocessing import compute_confusionMatrix
@@ -30,8 +26,8 @@ def get_filenames_of_path(path: pathlib.Path, ext: str = '*'):
 # Export/save dataframes?
 save_df = True
 
-# Root directory
-root = pathlib.Path.home() / 'labspaces' / 'jannik-cp-detection-project' / 'data' / 'work' / 'unet_data'
+# Root directory containing "TestSet" folder (inputs & targets), "Output/TestDataframes" folder, "SavedModels" folder 
+root = pathlib.Path.home() / 'root' / 'of'/ 'project' / 'folder'
 
 
 
@@ -51,7 +47,7 @@ normalization='batch'
 
 # DATASET
 # =============================================================================
-input_name_test = 'test_pseudo3D5t_overlap64_augmented'
+input_name_test = 'test_p3D5t'
 # Patch overlap on each side (0 if input and target have equal H and W)
 overlap = 64  
 
@@ -62,8 +58,8 @@ minSize = 25
 
 
 # Input and target files
-input_names = get_filenames_of_path(root / ('Test/Input/'+input_name_test))
-target_names = get_filenames_of_path(root / 'Test/Target/test_augmented')
+input_names = get_filenames_of_path(root / ('TestSet/Input/'+input_name_test))
+target_names = get_filenames_of_path(root / 'TestSet/Target')
 
 # Device
 print(torch.cuda.is_available())
@@ -137,71 +133,6 @@ def unique_nonzero(array, return_counts=False):
         return labels
 
 
-def track(newLabeledField,oldLabeledField,trackingFactor=0.5,oldFactor=None):
-    """
-    Function to compare two labeled fields and track overlapping patches based on a tracking factor.
-
-    Parameters
-    ----------
-    newLabeledField : array_like
-        2D array with labeled reference patches.
-    oldLabeledField : array_like
-        2D array with labeled patches to compare with the reference patches.
-    trackingFactor : float, optional
-        Required overlap (proportion of the new patch) between two patches to be tracked. 
-        The default is 0.5.
-    maxFactor : float, optional
-        If specified, patches will only be tracked of they are not larger than maxFactor x reference patch. 
-        The default is None.
-        
-    Returns a labeled field with patches relabeled based on the tracking.
-    -------
-    blobs_new : array_like
-        2D array with relabeled patches based on the tracking.
-    """
-    
-    blobs_new = newLabeledField
-    blobs_old = oldLabeledField
-    tf = trackingFactor
-    tfold = oldFactor
-    
-    blob_labels_new, blob_counts_new = unique_nonzero(blobs_new,return_counts=True)
-    blob_labels_old, blob_counts_old = unique_nonzero(blobs_old,return_counts=True)    
-        
-    l = 0             
-    k = 0
-    updated_index = []
-    updated_label = []
-    
-    for blob in blob_labels_new:
-        blob_region = blobs_new == blob
-        overlap = blob_region * blobs_old
-        unique, number = unique_nonzero(overlap, return_counts=True)                  
-        itemindex = np.where(unique==blob)
-        unique = np.delete(unique, itemindex)
-        number = np.delete(number, itemindex)
-        if len(unique) > 0:
-            if tfold is not None:
-                if (np.max(number) > (blob_counts_new[k]*tf)) and (np.max(number) > blob_counts_old[np.where(blob_labels_old==unique[np.argmax(number)])]*tfold):
-                    #print("Overlap detetcted: Patch " + str(blob_labels_new[k]) + " is patch " + str(unique[np.argmax(number)]))
-                    updated_index.append(k)
-                    updated_label.append(unique[np.argmax(number)])
-            else:
-                if np.max(number) > (blob_counts_new[k]*tf):
-                    #print("Overlap detetcted: Patch " + str(blob_labels_new[k]) + " is patch " + str(unique[np.argmax(number)]))
-                    updated_index.append(k)
-                    updated_label.append(unique[np.argmax(number)])
-        k += 1
-    
-    for index in updated_index:
-        blobs_new = np.where(blobs_new==blob_labels_new[index],updated_label[l],blobs_new)                     
-        l += 1
-        
-    return blobs_new
-
-
-
-
 # ******************************** Test *******************************
 
 # Read images and store them in memory
@@ -259,48 +190,54 @@ for img,target in zip(images,targets):
             pred_labels = np.where(pred_labels==lbl,0,pred_labels)
         l += 1   
      
-    # Change the remaining labels to start after the max of the target labels
-    label_list = unique_nonzero(pred_labels)       
-    j = len(label_list)
-    targetMax = np.max(target_labels)
-    for labl in reversed(label_list):
-        pred_labels = np.where(pred_labels==labl,targetMax+j,pred_labels)
-        j -= 1   
-
-    # Check if the predicted CPs overlap with ground truth CPs for more than 50% of their area covering more than 50% of the ground truth area
-    pred_labels = track(newLabeledField=pred_labels,oldLabeledField=target_labels,
-                               trackingFactor=0.5,oldFactor=0.5)    
-    
     # Get an updated list of the predicted CPs and a list with the ground truth CPs
     target_cps, target_cps_count = unique_nonzero(target_labels, return_counts=True)
     pred_cps, pred_cps_count = unique_nonzero(pred_labels, return_counts=True)
     
-    # Loop over the ground truth CPs and check if they were detected
-    l = 0
-    for cp in target_cps:
-        if cp in pred_cps:
-            cp_sample = [tstep,patch,simulation,"p3D5t",target_cps_count[l],True]
-            cps_list.append(cp_sample)
+    # Loop over target CPs and check how many of them were detected, i.e., overlapped by predicted CPs by more than 50% of their area
+    detected_cps = 0
+    for targetLbl, targetPixels in zip(target_cps,target_cps_count):
+        target_region = target_labels == targetLbl
+        overlap = target_region & (pred_labels != 0)
+        # Check if there is sufficient overlap
+        if np.sum(overlap) >= 0.5 * targetPixels:
+            # Check if the predicted CPs are too big
+            overlapper_counts = 0
+            for overlapper in unique_nonzero(overlap*pred_labels):
+                #overlapper_counts += np.sum(pred_cps_count[np.where(pred_cps==overlapper)])
+                overlapper_counts += pred_cps_count[list(pred_cps).index(overlapper)]
+            if overlapper_counts <= 2 * targetPixels:
+                detected_cps += 1
+                cp_sample = [tstep,patch,simulation,"p3D5t",targetPixels,True]
+                cps_list.append(cp_sample) 
+            else:
+                cp_sample = [tstep,patch,simulation,"p3D5t",targetPixels,False]
+                cps_list.append(cp_sample)                  
         else:
-            cp_sample = [tstep,patch,simulation,"p3D5t",target_cps_count[l],False]
-            cps_list.append(cp_sample)            
-        l += 1
+            cp_sample = [tstep,patch,simulation,"p3D5t",targetPixels,False]
+            cps_list.append(cp_sample)              
+
+    # Loop over predicted CPs and check how many of them were false alarms, i.e., not overlapping any target CP
+    false_cps = 0
+    for predLbl in pred_cps:
+        pred_region = pred_labels == predLbl
+        overlap = pred_region & (target_labels != 0)
+        if np.sum(overlap) == 0:
+            false_cps += 1
     
     # Evaluate the overall detections
     total_cps = len(target_cps)
-    detected_cps = len(list(set(target_cps) & set(pred_cps)))
-    false_cps = len(pred_cps) - detected_cps
     detection_sample = [tstep,patch,simulation,"p3D5t",total_cps,detected_cps,false_cps]
     detection_list.append(detection_sample)
     
     # Evaluate the metrics
     if np.sum(target) == 0:
         accuracy = (tp + tn) / (tp + tn + fp + fn)
-        metrics_sample = [tstep, mean_cpCoverage, accuracy]
+        metrics_sample = [tstep, patch, simulation, mean_cpCoverage, accuracy]
         metricsNoCp_list.append(metrics_sample)
     elif np.all(target) == 1:
         accuracy = (tp + tn) / (tp + tn + fp + fn)
-        metrics_sample = [tstep, mean_cpCoverage, accuracy]
+        metrics_sample = [tstep, patch, simulation, mean_cpCoverage, accuracy]
         metricsOnlyCp_list.append(metrics_sample)
     else:        
         accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -309,24 +246,24 @@ for img,target in zip(images,targets):
         recall = tp / (tp + fn)
         f1 = (2 * precision * recall) / (precision + recall)
         specificity = tn / (tn + fp)
-        metrics_sample = [tstep, mean_cpCoverage, accuracy, iou, precision, recall, f1, specificity]
+        metrics_sample = [tstep, patch, simulation, mean_cpCoverage, accuracy, iou, precision, recall, f1, specificity]
         metrics_list.append(metrics_sample)
     i += 1
 
 # Convert list to dataframe
-metrics_df = pd.DataFrame(metrics_list, columns=["Timestep", "CP_Coverage", "Accuracy", "IOU", "Precision", "Recall", "F1", "Specificity"])
-metricsNoCp_df = pd.DataFrame(metricsNoCp_list, columns=["Timestep", "CP_Coverage", "Accuracy"])
-metricsOnlyCp_df = pd.DataFrame(metricsOnlyCp_list, columns=["Timestep", "CP_Coverage", "Accuracy"])
+metrics_df = pd.DataFrame(metrics_list, columns=["Timestep", "Patch", "Simulation", "CP_Coverage", "Accuracy", "IOU", "Precision", "Recall", "F1", "Specificity"])
+metricsNoCp_df = pd.DataFrame(metricsNoCp_list, columns=["Timestep", "Patch", "Simulation", "CP_Coverage", "Accuracy"])
+metricsOnlyCp_df = pd.DataFrame(metricsOnlyCp_list, columns=["Timestep", "Patch", "Simulation", "CP_Coverage", "Accuracy"])
 cps_df = pd.DataFrame(cps_list, columns=["Timestep", "Patch", "Simulation", "Model", "Area", "Detected"])
 detection_df = pd.DataFrame(detection_list, columns=["Timestep", "Patch", "Simulation", "Model", "CPsTotal", "CPsDetected", "CPsFalse"])
 
 # Save/export dataframes
 if save_df:
-    metrics_df.to_pickle(root / ("Test/Output/Dataframes/metrics_df_"+input_name_test+".pkl"))
-    metricsNoCp_df.to_pickle(root / ("Test/Output/Dataframes/metricsNoCp_df_"+input_name_test+".pkl"))
-    metricsOnlyCp_df.to_pickle(root / ("Test/Output/Dataframes/metricsOnlyCp_df_"+input_name_test+".pkl"))
-    cps_df.to_pickle(root / ("Test/Output/Dataframes/cps_df_"+input_name_test+".pkl"))
-    detection_df.to_pickle(root / ("Test/Output/Dataframes/detection_df_"+input_name_test+".pkl"))
+    metrics_df.to_pickle(root / ("Output/Dataframes/metrics_df_"+input_name_test+".pkl"))
+    metricsNoCp_df.to_pickle(root / ("Output/Dataframes/metricsNoCp_df_"+input_name_test+".pkl"))
+    metricsOnlyCp_df.to_pickle(root / ("Output/Dataframes/metricsOnlyCp_df_"+input_name_test+".pkl"))
+    cps_df.to_pickle(root / ("Output/Dataframes/cps_df_"+input_name_test+".pkl"))
+    detection_df.to_pickle(root / ("Output/Dataframes/detection_df_"+input_name_test+".pkl"))
     
 
 # Plot main statistics
@@ -339,6 +276,8 @@ print("CP mean precision: " + str(metrics_df["Precision"].mean()))
 print("CP mean recall: " + str(metrics_df["Recall"].mean()))
 print("CP mean F1: " + str(metrics_df["F1"].mean()))
 print("CP mean specificity: " + str(metrics_df["Specificity"].mean()))
+print("Detection rate: " + str(detection_df["CPsDetected"].sum()/(detection_df["CPsTotal"].sum())))
+print("Critical success index: " + str(detection_df["CPsDetected"].sum()/(detection_df["CPsTotal"].sum()+detection_df.loc[detection_df["CPsTotal"]!=0,"CPsFalse"].sum())))
 
 
 

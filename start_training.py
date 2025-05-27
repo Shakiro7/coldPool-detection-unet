@@ -25,7 +25,7 @@ from postprocessing import Postprocessor
 # MODEL
 # =============================================================================
 # Channels
-in_c = 6
+in_c = 6 # Options: 2 (2D), 6 (p3D3t), 10 (p3D5t)
 out_c = 2
 
 # Network depth
@@ -50,10 +50,10 @@ target_accuracy = 1.0
 
 # DATASET
 # =============================================================================
-dataset_name = 'train_pseudo3D_overlap64_augmented_4perc_lessCpOnly'
+dataset_name = 'train_p3D3t'
 
-# Root directory
-root = pathlib.Path.home() / 'labspaces' / 'jannik-cp-detection-project' / 'data' / 'work' / 'unet_data'
+# Root directory containing "TrainingSet" folder (inputs & targets), "Output/TrainingDataframes" folder, "SavedModels" folder 
+root = pathlib.Path.home() / 'root' / 'of'/ 'project' / 'folder'
 
 # Patch overlap on each side (0 if input and target have equal H and W)
 overlap = 64
@@ -70,7 +70,7 @@ train_size = 0.75
 # ANALYSIS
 # =============================================================================
 # Confusion matrix
-save_confusion = True
+save_confusion = False
 
 # Loss and accuracy
 save_metrics = True
@@ -86,8 +86,8 @@ save_metrics = True
 
 
 # Input and target files
-inputs = get_filenames_of_path(root / ('Training/Input/'+dataset_name))
-targets = get_filenames_of_path(root / 'Training/Target/train_augmented_4perc_lessCpOnly')
+inputs = get_filenames_of_path(root / ('TrainingSet/Input/'+dataset_name))
+targets = get_filenames_of_path(root / 'TrainingSet/Target')
 
 # Training transformations and augmentations
 transforms = ComposeDouble([

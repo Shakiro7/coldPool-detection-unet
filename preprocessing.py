@@ -13,7 +13,6 @@ from typing import List, Callable
 
 
 
-# Source: https://towardsdatascience.com/creating-and-training-a-u-net-model-with-pytorch-for-2d-3d-semantic-segmentation-dataset-fb1f7f80fe55
 def normalize_01(inp: np.ndarray):
     """Squash image input to the value range [0, 1] (no clipping)"""
     inp_out = (inp - np.min(inp)) / np.ptp(inp)
@@ -62,7 +61,6 @@ class ComposeDouble(Compose):
 
 
 
-# Source: https://towardsdatascience.com/creating-and-training-a-u-net-model-with-pytorch-for-2d-3d-semantic-segmentation-dataset-fb1f7f80fe55
 class DataSampler(data.Dataset):
     def __init__(self,
                  inputs: list,

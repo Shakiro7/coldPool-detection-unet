@@ -19,12 +19,10 @@ class DiceLoss(nn.Module):
 
     def forward(self, inputs, targets, smooth=1):
 
-        #comment out if your model contains a sigmoid or equivalent activation layer
-        #inputs = F.sigmoid(inputs)
         inputs = torch.softmax(inputs, dim=1)
         targets = F.one_hot(targets, num_classes = self.out_channels).permute(0,3,1,2).contiguous()
 
-        #flatten label and prediction tensors
+        # Flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
@@ -48,7 +46,7 @@ class DiceCeLoss(nn.Module):
         inputs = torch.softmax(inputs, dim=1)
         targets = F.one_hot(targets, num_classes = self.out_channels).permute(0,3,1,2).contiguous()
 
-        #flatten label and prediction tensors
+        # Flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
@@ -56,8 +54,6 @@ class DiceCeLoss(nn.Module):
         dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)                 
 
         return self.alpha * (1 - dice) + (1-self.alpha) * ce
-
-
 
 
 def accuracy(out, target):
@@ -75,3 +71,7 @@ def miou(out, target, num_classes):
     jaccard = JaccardIndex(num_classes=num_classes,absent_score=1.0)
     iou_score = jaccard(out.cpu(), target.cpu())
     return iou_score
+
+
+
+

@@ -26,7 +26,6 @@ class Postprocessor:
  
         
 # Function to plot the training metrics 
-# Source: https://towardsdatascience.com/creating-and-training-a-u-net-model-with-pytorch-for-2d-3d-semantic-segmentation-dataset-fb1f7f80fe55
 def plot_training(training_accuracy,
                   training_losses,
                   training_iou,
